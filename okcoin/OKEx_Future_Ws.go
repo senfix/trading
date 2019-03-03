@@ -5,7 +5,7 @@ import (
 	"compress/flate"
 	"encoding/json"
 	"fmt"
-	. "github.com/nntaoli-project/GoEx"
+	. "github.com/senfix/trading"
 	"io/ioutil"
 	"log"
 	"strings"

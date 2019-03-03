@@ -1,4 +1,4 @@
-package goex
+package trading
 
 import (
 	"bytes"

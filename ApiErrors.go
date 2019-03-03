@@ -1,4 +1,4 @@
-package goex
+package trading
 
 type ApiError struct {
 	ErrCode,

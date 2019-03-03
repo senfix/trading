@@ -1,7 +1,7 @@
 package exx
 
 import (
-	"github.com/nntaoli-project/GoEx"
+	"github.com/senfix/trading"
 	"net/http"
 	"net/url"
 	"testing"

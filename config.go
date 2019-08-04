@@ -1,25 +1,10 @@
 package trading
 
-import "github.com/senfix/trader/config"
+import "github.com/senfix/trading/config"
 
 type Config struct {
-	Zb config.Zb `json:"zb"`
+	Zb      config.Zb      `json:"zb"`
 	Binance config.Binance `json:"binance"`
 	Bittrex config.Bittrex `json:"bittrex"`
+	Okex    config.Okex    `json:"okex"`
 }
-
-type Binance struct {
-	ApiKey    string `json:"api_key"`
-	ApiSecret string `json:"api_secret"`
-}
-
-type Bittrex struct {
-	ApiKey    string `json:"api_key"`
-	ApiSecret string `json:"api_secret"`
-}
-
-type Zb struct {
-	ApiKey    string `json:"api_key"`
-	ApiSecret string `json:"api_secret"`
-}
-

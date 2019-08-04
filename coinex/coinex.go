@@ -247,6 +247,10 @@ func (coinex *CoinEx) GetTrades(currencyPair CurrencyPair, since int64) ([]Trade
 	panic("not implement")
 }
 
+func (coinex *CoinEx) Withdraw(wallet Wallet, amount string, currency Currency) error {
+	panic("not implements")
+}
+
 func (coinex *CoinEx) doRequestInner(method, uri string, params *url.Values) (buf []byte, err error) {
 	reqUrl := baseurl + uri
 

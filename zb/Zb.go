@@ -75,7 +75,7 @@ func (zb *Zb) GetDepth(size int, currency CurrencyPair) (*Depth, error) {
 
 	asks, isok1 := resp["asks"].([]interface{})
 	bids, isok2 := resp["bids"].([]interface{})
-	
+
 	if isok2 != true || isok1 != true {
 		return nil, errors.New("no depth data!")
 	}
@@ -209,6 +209,7 @@ func (zb *Zb) placeOrder(amount, price string, currency CurrencyPair, tradeType 
 	order.Currency = currency
 	order.OrderTime = int(time.Now().UnixNano() / 1000000)
 	order.OrderID, _ = strconv.Atoi(orid)
+	order.OrderID2 = orid
 
 	switch tradeType {
 	case 0:
@@ -379,7 +380,7 @@ func (zb *Zb) GetKlineRecords(currency CurrencyPair, period, size, since int) ([
 	return nil, nil
 }
 
-func (zb *Zb) Withdraw(amount string, currency Currency, fees, receiveAddr, safePwd string) (string, error) {
+func (zb *Zb) WithdrawInternal(amount string, currency Currency, fees, receiveAddr, safePwd string) (string, error) {
 	params := url.Values{}
 	params.Set("method", "withdraw")
 	params.Set("currency", strings.ToLower(currency.AdaptBchToBcc().String()))
@@ -447,4 +448,15 @@ func (zb *Zb) MarketBuy(amount, price string, currency CurrencyPair) (*Order, er
 
 func (zb *Zb) MarketSell(amount, price string, currency CurrencyPair) (*Order, error) {
 	panic("unsupport the market order")
+}
+
+func (zb *Zb) Withdraw(wallet Wallet, amount string, currency Currency) error {
+	fee := map[string]string{
+		LTC.String():  "0.005",
+		BTC.String():  "0.001",
+		USDT.String(): "5",
+	}
+	body, err := zb.WithdrawInternal(amount, currency, fee[currency.String()], wallet.Address, "553281")
+	fmt.Printf("%v\n", body)
+	return err
 }

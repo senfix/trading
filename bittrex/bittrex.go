@@ -1,11 +1,11 @@
 package bittrex
 
 import (
+	"errors"
 	"fmt"
 	. "github.com/senfix/trading"
 	"net/http"
 	"sort"
-	"errors"
 )
 
 type Bittrex struct {
@@ -111,6 +111,10 @@ func (bx *Bittrex) GetKlineRecords(currency CurrencyPair, period, size, since in
 
 //非个人，整个交易所的交易记录
 func (bx *Bittrex) GetTrades(currencyPair CurrencyPair, since int64) ([]Trade, error) {
+	panic("not implement")
+}
+
+func (bx *Bittrex) Withdraw(wallet Wallet, amount string, currency Currency) error {
 	panic("not implement")
 }
 

@@ -22,6 +22,7 @@ const (
 	url_cancel_order  = "cancel_order.do"
 	url_order_info    = "order_info.do"
 	url_orders_info   = "orders_info.do"
+	url_wallet_info   = "trade_history.do"
 	order_history_uri = "order_history.do"
 	trade_uri         = "trade_history.do"
 )
@@ -294,14 +295,14 @@ func (ctx *OKCoinCN_API) GetAccount() (*Account, error) {
 	}
 
 	funds := info["funds"].(map[string]interface{})
-	asset := funds["asset"].(map[string]interface{})
+	//asset := funds["asset"].(map[string]interface{})
 	free := funds["free"].(map[string]interface{})
 	freezed := funds["freezed"].(map[string]interface{})
 
 	account := new(Account)
 	account.Exchange = ctx.GetExchangeName()
-	account.Asset, _ = strconv.ParseFloat(asset["total"].(string), 64)
-	account.NetAsset, _ = strconv.ParseFloat(asset["net"].(string), 64)
+	//account.Asset, _ = strconv.ParseFloat(asset["total"].(string), 64)
+	//account.NetAsset, _ = strconv.ParseFloat(asset["net"].(string), 64)
 
 	var btcSubAccount SubAccount
 	var ltcSubAccount SubAccount
@@ -336,9 +337,9 @@ func (ctx *OKCoinCN_API) GetAccount() (*Account, error) {
 	bccSubAccount.ForzenAmount = ToFloat64(freezed["bcc"])
 
 	cnySubAccount.Currency = CNY
-	cnySubAccount.Amount, _ = strconv.ParseFloat(free["cny"].(string), 64)
+	//cnySubAccount.Amount, _ = strconv.ParseFloat(free["cny"].(string), 64)
 	cnySubAccount.LoanAmount = 0
-	cnySubAccount.ForzenAmount, _ = strconv.ParseFloat(freezed["cny"].(string), 64)
+	//cnySubAccount.ForzenAmount, _ = strconv.ParseFloat(freezed["cny"].(string), 64)
 
 	account.SubAccounts = make(map[Currency]SubAccount, 3)
 	account.SubAccounts[BTC] = btcSubAccount
@@ -565,9 +566,8 @@ func (ok *OKCoinCN_API) GetTrades(currencyPair CurrencyPair, since int64) ([]Tra
 		amount := item["amount"].(float64)
 		price := item["price"].(float64)
 		time := int64(item["date_ms"].(float64))
-		trades = append(trades, Trade{tid, AdaptTradeSide(direction), amount, price, time , currencyPair})
+		trades = append(trades, Trade{tid, AdaptTradeSide(direction), amount, price, time, currencyPair})
 	}
-
 
 	return trades, nil
 }

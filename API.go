@@ -2,7 +2,7 @@ package trading
 
 // api interface
 
-type API interface {
+type TradingApi interface {
 	LimitBuy(amount, price string, currency CurrencyPair) (*Order, error)
 	LimitSell(amount, price string, currency CurrencyPair) (*Order, error)
 	MarketBuy(amount, price string, currency CurrencyPair) (*Order, error)
@@ -15,9 +15,16 @@ type API interface {
 
 	GetTicker(currency CurrencyPair) (*Ticker, error)
 	GetDepth(size int, currency CurrencyPair) (*Depth, error)
-	GetKlineRecords(currency CurrencyPair, period , size, since int) ([]Kline, error)
+	GetKlineRecords(currency CurrencyPair, period, size, since int) ([]Kline, error)
 	//非个人，整个交易所的交易记录
 	GetTrades(currencyPair CurrencyPair, since int64) ([]Trade, error)
 
 	GetExchangeName() string
+
+	// Withdraw(wallet, amount string, currency Currency) (error)
+}
+
+type API interface {
+	TradingApi
+	Withdraw(wallet Wallet, amount string, currency Currency) error
 }

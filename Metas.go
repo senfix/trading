@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+type Wallet struct {
+	Address    string
+	AddressTag string
+}
+
 type Order struct {
 	Price,
 	Amount,

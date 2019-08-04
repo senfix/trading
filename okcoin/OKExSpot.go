@@ -1,10 +1,15 @@
 package okcoin
 
 import (
+	"bytes"
+	"compress/flate"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/buger/jsonparser"
+	"github.com/okcoin-okex/open-api-v3-sdk/okex-go-sdk-api"
 	. "github.com/senfix/trading"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -12,10 +17,21 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"compress/flate"
-	"bytes"
-	"io/ioutil"
-	"github.com/buger/jsonparser"
+)
+
+const (
+	/*
+	  http headers
+	*/
+	OK_ACCESS_KEY        = "OK-ACCESS-KEY"
+	OK_ACCESS_SIGN       = "OK-ACCESS-SIGN"
+	OK_ACCESS_TIMESTAMP  = "OK-ACCESS-TIMESTAMP"
+	OK_ACCESS_PASSPHRASE = "OK-ACCESS-PASSPHRASE"
+	CONTENT_TYPE         = "Content-Type"
+	ACCEPT               = "Accept"
+
+	APPLICATION_JSON      = "application/json"
+	APPLICATION_JSON_UTF8 = "application/json; charset=UTF-8"
 )
 
 type OKExSpot struct {
@@ -25,6 +41,7 @@ type OKExSpot struct {
 	wsTickerHandleMap map[string]func(*Ticker)
 	wsDepthHandleMap  map[string]func(*Depth)
 	wsTradeHandleMap  map[string]func(*Trade)
+	oc                *okex.Client
 }
 
 func NewOKExSpot(client *http.Client, accesskey, secretkey string) *OKExSpot {
@@ -32,14 +49,133 @@ func NewOKExSpot(client *http.Client, accesskey, secretkey string) *OKExSpot {
 		OKCoinCN_API:      OKCoinCN_API{client, accesskey, secretkey, "https://www.okex.com/api/v1/"},
 		wsTickerHandleMap: make(map[string]func(*Ticker)),
 		wsDepthHandleMap:  make(map[string]func(*Depth)),
-		wsTradeHandleMap:  make(map[string]func(*Trade))}
+		wsTradeHandleMap:  make(map[string]func(*Trade)),
+		oc:                NewOKExClient(),
+	}
+}
+
+func NewOKExClient() *okex.Client {
+
+	var config okex.Config
+	config.Endpoint = "https://www.okex.com/"
+	config.ApiKey = "a92e50c8-33d1-4a37-8f80-32ed975cf956"
+	config.SecretKey = "9A817E077FA102111F9D42331A79AA26"
+	config.Passphrase = "3tk0tkYPmSi4"
+	config.TimeoutSecond = 45
+	config.IsPrint = true
+	config.I18n = okex.ENGLISH
+
+	client := okex.NewClient(config)
+	return client
 }
 
 func (ctx *OKExSpot) GetExchangeName() string {
 	return OKEX
 }
 
+func (ctx *OKExSpot) Withdraw(wallet Wallet, amount string, currency Currency) (err error) {
+	a, err := strconv.ParseFloat(amount, 32)
+
+	if err != nil {
+		return err
+	}
+
+	//load fee
+	//c := currency.String()
+	fee := 0.0
+	//feeMap, err := ctx.oc.GetAccountWithdrawalFeeByCurrency(&c)
+	//if err != nil {
+	//	return
+	//}
+	//for _, data := range *feeMap {
+	//	feeStr := data["min_fee"]
+	//	fee = feeStr.(float64)
+	//}
+	fee = 0.00100000
+
+	//transfer to general wallet
+	_, err = ctx.oc.PostAccountTransfer(
+		strings.ToLower(currency.String()),
+		1,
+		6,
+		a+fee,
+		nil,
+	)
+	if err != nil {
+		return
+	}
+
+	_, err = ctx.oc.PostAccountWithdrawal(
+		strings.ToLower(currency.String()),
+		wallet.Address,
+		"3tk0tkYPmSi4",
+		4,
+		float32(a),
+		float32(fee),
+	)
+
+	return
+}
+
+func (ctx *OKExSpot) GetWallet() (w wallet, err error) {
+	postData := url.Values{}
+	err = ctx.buildPostForm(&postData)
+	if err != nil {
+		return
+	}
+	body, err := HttpPostForm(ctx.client, "https://www.okex.com/api/v1/wallet_info.do", postData)
+	if err != nil {
+		log.Printf("%v", err)
+		return
+	}
+
+	w = wallet{}
+
+	err = json.Unmarshal(body, &w)
+	if err != nil {
+		log.Printf("%v", err)
+		return
+	}
+
+	return
+}
+
+func (ctx *OKExSpot) Transfer() (err error) {
+	wallet, err := ctx.GetWallet()
+	if err != nil {
+		return err
+	}
+
+	for symbol, amount := range wallet.Info.Funds.Free {
+		a, err := strconv.ParseFloat(amount, 64)
+
+		if err != nil {
+			return err
+		}
+
+		if a < 0.000001 {
+			continue
+		}
+
+		_, err = ctx.oc.PostAccountTransfer(
+			symbol,
+			6,
+			1,
+			a,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return
+}
+
 func (ctx *OKExSpot) GetAccount() (*Account, error) {
+	//transfer moune from wallet to account
+	ctx.Transfer()
+
 	postData := url.Values{}
 	err := ctx.buildPostForm(&postData)
 	if err != nil {
@@ -185,7 +321,7 @@ func (okSpot *OKExSpot) createWsConn() {
 						okSpot.wsDepthHandleMap[channel](dep)
 					}
 
-				}, )
+				})
 
 			})
 		}
@@ -295,4 +431,33 @@ func (okSpot *OKExSpot) parseDepth(tickmap map[string]interface{}) *Depth {
 func (okSpot *OKExSpot) getPairFormChannel(channel string) CurrencyPair {
 	metas := strings.Split(channel, "_")
 	return NewCurrencyPair2(metas[3] + "_" + metas[4])
+}
+
+type wallet struct {
+	Info struct {
+		Funds struct {
+			Free  map[string]string `json:"free"`
+			Holds map[string]string `json:"holds"`
+		} `json:"funds"`
+	} `json:"info"`
+}
+
+/*
+ Get a iso time
+  eg: 2018-03-16T18:02:48.284Z
+*/
+func IsoTime() string {
+	utcTime := time.Now().UTC()
+	iso := utcTime.String()
+	isoBytes := []byte(iso)
+	iso = string(isoBytes[:10]) + "T" + string(isoBytes[11:23]) + "Z"
+	return iso
+}
+
+func doParamSign(httpMethod, apiSecret, uri, requestBody string) (string, string) {
+	timestamp := IsoTime()
+	preText := fmt.Sprintf("%s%s%s%s", timestamp, strings.ToUpper(httpMethod), uri, requestBody)
+	log.Println("preHash", preText)
+	sign, _ := GetParamHmacSHA256Base64Sign(apiSecret, preText)
+	return sign, timestamp
 }

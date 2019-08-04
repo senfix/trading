@@ -9,19 +9,22 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	API_BASE_URL = "https://api.binance.com/"
-	API_V1       = API_BASE_URL + "api/v1/"
-	API_V3       = API_BASE_URL + "api/v3/"
+	API_BASE_URL   = "https://api.binance.com/"
+	API_V1         = API_BASE_URL + "api/v1/"
+	API_V3         = API_BASE_URL + "api/v3/"
+	API_WITHDRAWAL = API_BASE_URL + "wapi/v3/"
 
 	TICKER_URI             = "ticker/24hr?symbol=%s"
 	TICKERS_URI            = "ticker/allBookTickers"
 	DEPTH_URI              = "depth?symbol=%s&limit=%d"
 	ACCOUNT_URI            = "account?"
 	ORDER_URI              = "order?"
+	WITHDRAWAL_URI         = "withdraw.html?"
 	UNFINISHED_ORDERS_INFO = "openOrders?"
 	KLINE_URI              = "klines"
 	SERVER_TIME_URL        = "api/v1/time"
@@ -174,6 +177,8 @@ func (bn *Binance) placeOrder(amount, price string, pair CurrencyPair, orderType
 
 	bn.buildParamsSigned(&params)
 
+	log.Printf("%v\n", amount)
+	log.Printf("%v\n", params)
 	resp, err := HttpPostForm2(bn.httpClient, path, params,
 		map[string]string{"X-MBX-APIKEY": bn.accessKey})
 	//log.Println("resp:", string(resp), "err:", err)
@@ -390,7 +395,6 @@ func (bn *Binance) GetKlineRecords(currency CurrencyPair, period, size, since in
 	params.Set("limit", fmt.Sprintf("%d", size))
 
 	klineUrl := API_V1 + KLINE_URI + "?" + params.Encode()
-	fmt.Println(klineUrl)
 	klines, err := HttpGet3(bn.httpClient, klineUrl, nil)
 	if err != nil {
 		return nil, err
@@ -431,6 +435,37 @@ func (bn *Binance) GetTrades(currencyPair CurrencyPair, since int64) ([]Trade, e
 func (bn *Binance) GetOrderHistorys(currency CurrencyPair, currentPage, pageSize int) ([]Order, error) {
 	panic("not implements")
 }
+
+func (bn *Binance) Withdraw(wallet Wallet, amount string, currency Currency) error {
+	path := API_WITHDRAWAL + WITHDRAWAL_URI
+	params := url.Values{}
+	params.Set("asset", currency.Symbol)
+	params.Set("address", wallet.Address)
+	if len(wallet.AddressTag) > 0 {
+		params.Set("addressTag", wallet.AddressTag)
+	}
+	params.Set("amount", strings.TrimRight(amount, "0"))
+
+	params.Set("recvWindow", "6000000")
+	tonce := strconv.FormatInt(time.Now().UnixNano()+bn.timeoffset, 10)[0:13]
+	params.Set("timestamp", tonce)
+	payload := params.Encode()
+	sign, _ := GetParamHmacSHA256Sign(bn.secretKey, payload)
+	path = path + payload + "&signature=" + sign
+
+	headers := map[string]string{}
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	headers["X-MBX-APIKEY"] = bn.accessKey
+
+	_, err := NewHttpRequest(bn.httpClient, "POST", path, "", headers)
+	//log.Println("resp:", string(resp), "err:", err)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (ba *Binance) adaptCurrencyPair(pair CurrencyPair) CurrencyPair {
 	return pair.AdaptBchToBcc().AdaptUsdToUsdt()
 }

@@ -98,7 +98,7 @@ func (ctx *OKExSpot) Withdraw(wallet Wallet, amount string, currency Currency) (
 		strings.ToLower(currency.String()),
 		1,
 		6,
-		a+fee,
+		float32(a+fee),
 		nil,
 	)
 	if err != nil {
@@ -161,7 +161,7 @@ func (ctx *OKExSpot) Transfer() (err error) {
 			symbol,
 			6,
 			1,
-			a,
+			float32(a),
 			nil,
 		)
 		if err != nil {
